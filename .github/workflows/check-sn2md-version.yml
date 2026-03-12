@@ -1,0 +1,87 @@
+name: Check for new sn2md version
+
+# Runs weekly on Monday mornings and checks PyPI for a new sn2md release.
+# If a newer version is found than the latest tag in this repo, sends a
+# Notifiarr notification so you know to tag and trigger a new image build.
+#
+# Required GitHub secret:
+#   NOTIFIARR_PASSTHROUGH_URL — full Notifiarr passthrough URL including your API key
+#   Format: https://notifiarr.com/api/v1/notification/passthrough/<YOUR_API_KEY>/<CHANNEL_ID>
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  check-version:
+    name: Check PyPI for new sn2md release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: Get latest sn2md version from PyPI
+        id: pypi
+        run: |
+          LATEST=$(curl -s https://pypi.org/pypi/sn2md/json | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+          echo "LATEST_PYPI=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "Latest sn2md on PyPI: ${LATEST}"
+
+      - name: Get latest version tagged in this repo
+        id: tagged
+        run: |
+          # Find the highest sn2md-X.Y.Z tag in this repo
+          LATEST_TAG=$(git tag --list 'sn2md-*' | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            TAGGED_VERSION="0.0.0"
+          else
+            TAGGED_VERSION="${LATEST_TAG#sn2md-}"
+          fi
+          echo "TAGGED_VERSION=${TAGGED_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Latest tagged version in repo: ${TAGGED_VERSION}"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          PYPI="${{ steps.pypi.outputs.LATEST_PYPI }}"
+          TAGGED="${{ steps.tagged.outputs.TAGGED_VERSION }}"
+
+          # Use Python to do proper semver comparison
+          IS_NEWER=$(python3 -c "
+          from packaging.version import Version
+          print('true' if Version('${PYPI}') > Version('${TAGGED}') else 'false')
+          ")
+          echo "IS_NEWER=${IS_NEWER}" >> "$GITHUB_OUTPUT"
+          echo "PyPI ${PYPI} newer than tagged ${TAGGED}: ${IS_NEWER}"
+
+      - name: Notify via Notifiarr (new version available)
+        if: steps.compare.outputs.IS_NEWER == 'true'
+        run: |
+          curl -s -X POST "${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "notification": {
+                "update": false,
+                "name": "snobmd",
+                "event": "0"
+              },
+              "discord": {
+                "color": "FFA500",
+                "text": {
+                  "title": "🆕 New sn2md version available",
+                  "content": "**sn2md ${{ steps.pypi.outputs.LATEST_PYPI }}** has been published to PyPI.\n\nYour current image is pinned to **${{ steps.tagged.outputs.TAGGED_VERSION }}**.\n\nTo build and push an updated image, run:\n```\ngit tag sn2md-${{ steps.pypi.outputs.LATEST_PYPI }}\ngit push origin sn2md-${{ steps.pypi.outputs.LATEST_PYPI }}\n```\n\nChangelog: https://pypi.org/project/sn2md/#history"
+                }
+              }
+            }'
+
+      - name: Log result (no update needed)
+        if: steps.compare.outputs.IS_NEWER == 'false'
+        run: |
+          echo "✅ Already up to date. PyPI: ${{ steps.pypi.outputs.LATEST_PYPI }}, Tagged: ${{ steps.tagged.outputs.TAGGED_VERSION }}"

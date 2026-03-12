@@ -1,0 +1,79 @@
+services:
+  sn2md:
+    image: hypeseverer/snobmd:latest
+    # Pin to a specific sn2md version tag instead of latest:
+    # image: hypeseverer/snobmd:sn2md-2.6.0
+    # -- OR build locally: --
+    # build: .
+    container_name: snobmd
+    restart: unless-stopped
+
+    ports:
+      # Admin Web UI — access at http://<host-ip>:8090
+      - "8090:8090"
+
+    environment:
+      # ── Ollama connection ──────────────────────────────────────────────────
+      # URL of your Ollama instance. Use the service name if Ollama is also
+      # a Docker container on the same network (e.g. "http://ollama:11434").
+      # Use a LAN IP if Ollama runs on the host or a different machine.
+      OLLAMA_BASE_URL: "http://ollama:11434"
+
+      # Vision-capable model pulled in Ollama. Recommended options:
+      #   qwen2.5vl:7b        - best accuracy for handwriting (recommended)
+      #   llama3.2-vision:11b - good alternative, well tested with sn2md
+      OLLAMA_MODEL: "qwen2.5vl:7b"
+
+      # ── Directory paths (match your volume mounts below) ──────────────────
+      INPUT_DIR: "/input"
+      OUTPUT_DIR: "/output"
+
+      # ── Conversion behaviour ──────────────────────────────────────────────
+      SCAN_EXISTING: "true"
+      FORCE_RECONVERT: "false"
+      POLL_INTERVAL: "60"
+
+      # ── sn2md output templates ────────────────────────────────────────────
+      OUTPUT_FILENAME_TEMPLATE: "{{file_basename}}.md"
+      OUTPUT_PATH_TEMPLATE: "{{file_basename}}"
+
+      # ── OCR prompt (optional override) ───────────────────────────────────
+      # SN2MD_PROMPT: |
+      #   ### Context (last lines from previous page): {context}
+      #   You are an OCR program. Extract all handwritten text from this
+      #   e-ink note page. Preserve structure as markdown. Output only markdown.
+
+      # ── Web UI ────────────────────────────────────────────────────────────
+      WEBUI_PORT: "8090"
+      WEBUI_ENABLED: "true"
+
+      # ── Notifiarr (optional) ──────────────────────────────────────────────
+      # NOTIFIARR_URL: "https://notifiarr.com/api/v1/notification/passthrough/KEY/CHANNEL"
+      # NOTIFIARR_ENABLED: "true"
+
+      # ── Supernote source (default: local volume mount) ────────────────────
+      # Options: local | private_cloud | supernote_cloud | webdav | smb
+      SUPERNOTE_SOURCE_TYPE: "local"
+      # SUPERNOTE_PRIVATE_CLOUD_URL: "http://10.17.52.5:19072"
+      # SUPERNOTE_PRIVATE_CLOUD_USER: "admin@example.com"
+      # SUPERNOTE_PRIVATE_CLOUD_PASS: "yourpassword"
+      # SUPERNOTE_SYNC_FOLDER: "/Note"
+      # SUPERNOTE_SYNC_INTERVAL: "300"
+
+    volumes:
+      # INPUT: your Supernote Private Cloud supernote_data directory
+      - /path/to/supernote_data:/input:ro
+
+      # OUTPUT: your Obsidian vault subfolder
+      - /path/to/obsidian/vault/Supernote:/output
+
+      # CONFIG: persists web UI settings, logs, and stats across restarts
+      - /path/to/sn2md-config:/config
+
+    # Optional: attach to same Docker network as your Ollama container
+    # networks:
+    #   - ollama-net
+
+# networks:
+#   ollama-net:
+#     external: true

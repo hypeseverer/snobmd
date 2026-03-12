@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnobMD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0d0f12;
+  --bg2:       #13161b;
+  --bg3:       #1a1e25;
+  --border:    #252a33;
+  --border2:   #2e3540;
+  --text:      #c9d1dc;
+  --text2:     #6b7685;
+  --text3:     #3d4550;
+  --accent:    #4f9cf9;
+  --accent2:   #3d7fd6;
+  --green:     #3ecf8e;
+  --red:       #f87171;
+  --orange:    #fb923c;
+  --yellow:    #fbbf24;
+  --purple:    #a78bfa;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'IBM Plex Sans', sans-serif;
+  --r:         6px;
+  --sidebar:   220px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+/* ── Layout ── */
+.shell { display: flex; height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar);
+  min-width: var(--sidebar);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+}
+.logo span { color: var(--text2); font-weight: 300; }
+
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 3px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+}
+.version-badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: background 0.3s;
+}
+.version-badge.ok .dot { background: var(--green); }
+.version-badge.update .dot { background: var(--orange); animation: pulse 2s infinite; }
+.version-badge.err .dot { background: var(--red); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+nav { flex: 1; overflow-y: auto; padding: 8px 0; }
+
+.nav-section {
+  padding: 12px 16px 4px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  color: var(--text2);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  font-size: 13px;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--bg3); color: var(--accent); border-left-color: var(--accent); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+.nav-item .badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-family: var(--mono);
+  min-width: 18px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.health-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+.health-row:last-child { margin-bottom: 0; }
+.health-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text3);
+  display: inline-block;
+  margin-right: 4px;
+}
+.health-dot.ok { background: var(--green); }
+.health-dot.err { background: var(--red); animation: pulse 2s infinite; }
+
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.topbar {
+  height: 52px;
+  min-height: 52px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 12px;
+}
+.topbar-title { font-size: 15px; font-weight: 500; color: var(--text); }
+.topbar-sub { font-size: 12px; color: var(--text2); margin-left: 4px; }
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* ── Pages ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Stat grid ── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.stat-label { font-size: 11px; color: var(--text2); font-family: var(--mono); margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-family: var(--mono); font-weight: 600; color: var(--text); line-height: 1; }
+.stat-value.green { color: var(--green); }
+.stat-value.orange { color: var(--orange); }
+.stat-value.red { color: var(--red); }
+.stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+/* ── Version check ── */
+.version-check {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 16px;
+}
+.version-info { flex: 1; }
+.version-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.version-label { font-size: 11px; color: var(--text2); font-family: var(--mono); width: 80px; }
+.version-val { font-family: var(--mono); font-size: 13px; color: var(--text); }
+.version-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.version-status.ok { background: rgba(62,207,142,0.1); color: var(--green); border: 1px solid rgba(62,207,142,0.2); }
+.version-status.update { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.2); }
+.version-status.loading { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+
+/* ── Forms ── */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.form-row { margin-bottom: 14px; }
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.form-label .required { color: var(--red); margin-left: 3px; }
+.form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+
+input[type=text], input[type=password], input[type=number], input[type=url],
+select, textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select { cursor: pointer; }
+textarea { resize: vertical; min-height: 80px; }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-info { flex: 1; margin-right: 16px; }
+.toggle-name { font-size: 13px; color: var(--text); margin-bottom: 2px; }
+.toggle-desc { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+
+.toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: all 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent2); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: #fff; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--r);
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger { background: transparent; border: 1px solid rgba(248,113,113,0.3); color: var(--red); }
+.btn-danger:hover { background: rgba(248,113,113,0.1); }
+.btn-success { background: var(--green); color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ── Alerts ── */
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-family: var(--mono);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.alert-info { background: rgba(79,156,249,0.1); border: 1px solid rgba(79,156,249,0.2); color: #93c5fd; }
+.alert-warn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); color: var(--yellow); }
+.alert-success { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.2); color: var(--green); }
+.alert-error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); color: var(--red); }
+.alert-hidden { display: none; }
+
+/* ── Log viewer ── */
+.log-viewer {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+  height: 420px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+}
+.log-viewer .log-error { color: var(--red); }
+.log-viewer .log-warn { color: var(--orange); }
+.log-viewer .log-info { color: var(--text2); }
+.log-viewer .log-ok { color: var(--green); }
+
+/* ── File table ── */
+.file-table { width: 100%; border-collapse: collapse; }
+.file-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+}
+.file-table td {
+  padding: 9px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  vertical-align: middle;
+}
+.file-table tr:hover td { background: var(--bg3); }
+.file-table tr:last-child td { border-bottom: none; }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-family: var(--mono);
+}
+.status-pill.ok { background: rgba(62,207,142,0.1); color: var(--green); }
+.status-pill.pending { background: rgba(251,191,36,0.1); color: var(--yellow); }
+.status-pill.error { background: rgba(248,113,113,0.1); color: var(--red); }
+
+/* ── Source type tabs ── */
+.source-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+.source-tab {
+  padding: 7px 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.source-tab:hover { border-color: var(--accent); color: var(--accent); }
+.source-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.source-panel { display: none; }
+.source-panel.active { display: block; }
+
+/* ── Conflict list ── */
+.conflict-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg3);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+}
+.conflict-icon { font-size: 18px; flex-shrink: 0; }
+.conflict-path { font-family: var(--mono); font-size: 12px; color: var(--text); word-break: break-all; }
+.conflict-type { font-size: 10px; color: var(--red); font-family: var(--mono); margin-top: 2px; }
+
+/* ── Progress bar ── */
+.progress-bar {
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.progress-fill.green { background: var(--green); }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 18px;
+  border-radius: var(--r);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #fff;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.25s;
+  pointer-events: none;
+  max-width: 360px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.ok { background: var(--green); }
+#toast.err { background: var(--red); }
+#toast.info { background: var(--accent); }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .sidebar { width: 52px; min-width: 52px; }
+  .nav-item span, .logo, .sidebar-header { display: none; }
+  .sidebar-footer { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .nav-item .icon { width: auto; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">Snob<span>MD</span></div>
+      <div class="version-badge" id="versionBadge">
+        <span class="dot"></span>
+        <span id="versionBadgeText">checking...</span>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-section">Monitor</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="icon">◈</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-page="logs">
+        <span class="icon">≡</span><span>Logs</span>
+      </div>
+      <div class="nav-item" data-page="errors">
+        <span class="icon">⚠</span><span>Errors & Conflicts</span>
+        <span class="badge" id="errorBadge" style="display:none">0</span>
+      </div>
+
+      <div class="nav-section">Configure</div>
+      <div class="nav-item" data-page="config">
+        <span class="icon">⚙</span><span>Environment</span>
+      </div>
+      <div class="nav-item" data-page="ollama">
+        <span class="icon">🤖</span><span>Ollama</span>
+      </div>
+      <div class="nav-item" data-page="source">
+        <span class="icon">⊕</span><span>Supernote Source</span>
+      </div>
+      <div class="nav-item" data-page="obsidian">
+        <span class="icon">💎</span><span>Obsidian</span>
+      </div>
+      <div class="nav-item" data-page="notifiarr">
+        <span class="icon">🔔</span><span>Notifiarr</span>
+      </div>
+      <div class="nav-item" data-page="rawconfig">
+        <span class="icon">📄</span><span>sn2md Config</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="health-row">
+        <div><span class="health-dot" id="healthWebui"></span>Web UI</div>
+        <span id="healthWebuiText" style="font-size:10px;font-family:var(--mono);color:var(--text3)">ok</span>
+      </div>
+      <div class="health-row">
+        <div><span class="health-dot" id="healthOllama"></span>Ollama</div>
+        <span id="healthOllamaText" style="font-size:10px;font-family:var(--mono);color:var(--text3)">checking</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <span class="topbar-title" id="pageTitle">Dashboard</span>
+        <span class="topbar-sub" id="pageSubtitle">SnobMD</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↺ Refresh</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Dashboard ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stat-grid" id="statGrid">
+          <div class="stat-card"><div class="stat-label">Notes Found</div><div class="stat-value" id="statTotal">—</div><div class="stat-sub">in input dir</div></div>
+          <div class="stat-card"><div class="stat-label">Converted</div><div class="stat-value green" id="statConverted">—</div><div class="stat-sub">markdown files</div></div>
+          <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value orange" id="statPending">—</div><div class="stat-sub">awaiting OCR</div></div>
+          <div class="stat-card"><div class="stat-label">Errors</div><div class="stat-value red" id="statErrors">—</div><div class="stat-sub">conversion failures</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Conversion Progress</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-family:var(--mono);color:var(--text2);margin-bottom:6px;">
+            <span id="progressLabel">—</span>
+            <span id="progressPct">—</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill green" id="progressBar" style="width:0%"></div></div>
+        </div>
+
+        <!-- Version check -->
+        <div class="card">
+          <div class="card-title">sn2md Version</div>
+          <div class="version-check">
+            <div class="version-info">
+              <div class="version-row">
+                <span class="version-label">Installed</span>
+                <span class="version-val" id="vInstalled">checking...</span>
+              </div>
+              <div class="version-row">
+                <span class="version-label">Latest (PyPI)</span>
+                <span class="version-val" id="vLatest">checking...</span>
+              </div>
+            </div>
+            <div class="version-status loading" id="versionStatus">
+              <span id="vStatusIcon">⟳</span>
+              <span id="vStatusText">Checking...</span>
+            </div>
+          </div>
+          <div id="changelogLink" style="display:none;margin-top:8px;">
+            <a href="https://pypi.org/project/sn2md/#history" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">
+              📋 View sn2md Changelog
+            </a>
+            <span style="margin-left:8px;font-size:11px;font-family:var(--mono);color:var(--text2)">
+              To update: <code style="color:var(--accent)">git tag sn2md-X.Y.Z && git push origin sn2md-X.Y.Z</code>
+            </span>
+          </div>
+        </div>
+
+        <!-- Recent files -->
+        <div class="card">
+          <div class="card-title">Recent Notes</div>
+          <div id="filesTableWrap">
+            <table class="file-table">
+              <thead><tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Size</th>
+                <th>Modified</th>
+              </tr></thead>
+              <tbody id="filesTable">
+                <tr><td colspan="4" style="color:var(--text3);text-align:center;padding:24px">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Logs ── -->
+      <div class="page" id="page-logs">
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title">Log Viewer</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+            <select id="logLines" style="width:140px" onchange="loadLogs()">
+              <option value="100">Last 100 lines</option>
+              <option value="200" selected>Last 200 lines</option>
+              <option value="500">Last 500 lines</option>
+              <option value="1000">Last 1000 lines</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadLogs()">↺ Refresh</button>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+              <input type="checkbox" id="autoScrollLog" checked style="width:auto;margin-right:4px"> Auto-scroll
+            </label>
+          </div>
+          <div class="log-viewer" id="logViewer">Loading logs...</div>
+        </div>
+      </div>
+
+      <!-- ── Errors & Conflicts ── -->
+      <div class="page" id="page-errors">
+        <div class="card">
+          <div class="card-title">Error Log</div>
+          <div id="errorList" style="font-family:var(--mono);font-size:12px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Sync Conflicts</div>
+          <div id="conflictInfo" class="alert alert-info">
+            ℹ Conflict detection scans for merge conflict markers (&lt;&lt;&lt;&lt;&lt;&lt;, =====) and duplicate file names
+            (e.g. from Obsidian LiveSync or Syncthing conflicts).
+          </div>
+          <div id="conflictList"></div>
+        </div>
+      </div>
+
+      <!-- ── Environment Config ── -->
+      <div class="page" id="page-config">
+        <div class="alert alert-warn" id="configSaveAlert" style="display:none"></div>
+        <div id="configSavedMsg" class="alert alert-success alert-hidden"></div>
+
+        <div class="card">
+          <div class="card-title">Ollama Settings</div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label">OLLAMA_BASE_URL <span class="required">*</span></label>
+              <input type="url" id="env_OLLAMA_BASE_URL" placeholder="http://10.17.52.5:11434">
+              <div class="form-hint">URL of your Ollama instance.</div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">OLLAMA_MODEL <span class="required">*</span></label>
+              <input type="text" id="env_OLLAMA_MODEL" placeholder="qwen2.5vl:7b">
+              <div class="form-hint">Vision model to use. Recommended: qwen2.5vl:7b</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Conversion Behaviour</div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label">Input Directory</label>
+              <input type="text" id="env_INPUT_DIR" placeholder="/input">
+              <div class="form-hint">Path inside the container where SnobMD watches for .note files. Should match your volume mount.</div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Output Directory</label>
+              <input type="text" id="env_OUTPUT_DIR" placeholder="/output">
+              <div class="form-hint">Path inside the container where converted Markdown files are written. Should point to your Obsidian vault subfolder.</div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Poll Interval (seconds)</label>
+              <input type="number" id="env_POLL_INTERVAL" min="10" max="3600">
+              <div class="form-hint">How often SnobMD scans for new files as a fallback to real-time watching. Default: 60 seconds.</div>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">Process existing files on startup</div>
+              <div class="toggle-desc">When the container starts, convert any .note files that haven't been converted yet</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="env_SCAN_EXISTING"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">Force re-convert all files</div>
+              <div class="toggle-desc">Re-convert files even if a Markdown output already exists — useful after changing the AI model or prompt</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="env_FORCE_RECONVERT"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Output File Templates</div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label">Filename Template</label>
+              <input type="text" id="env_OUTPUT_FILENAME_TEMPLATE" placeholder="{{file_basename}}.md">
+              <div class="form-hint">Template for the output Markdown filename. <code style="color:var(--accent)">{{file_basename}}</code> is the .note file's name without extension.</div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Subfolder Template</label>
+              <input type="text" id="env_OUTPUT_PATH_TEMPLATE" placeholder="{{file_basename}}">
+              <div class="form-hint">Subfolder within the output directory. By default each note gets its own folder matching its filename.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">OCR Prompt</div>
+          <div class="form-row">
+            <label class="form-label">Vision Model Prompt</label>
+            <textarea id="env_SN2MD_PROMPT" rows="6" placeholder="OCR instructions sent to the vision model. Must include {context} placeholder."></textarea>
+            <div class="form-hint">Customize how the AI reads your handwriting. Must include <code style="color:var(--accent)">{context}</code> — this carries the last few lines from the previous page for continuity across multi-page notes.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-primary" onclick="saveConfig()">💾 Save Changes</button>
+          <button class="btn btn-ghost" onclick="loadConfig()">↺ Reset</button>
+        </div>
+        <p style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text3)">
+          ⚠ Changes are saved to <code>/config/env_overrides.json</code>. Restart the container to apply.
+        </p>
+      </div>
+
+      <!-- ── Supernote Source ── -->
+      <div class="page" id="page-source">
+        <div class="alert alert-info">
+          ℹ Select your Supernote sync source. The container will pull .note files from this source into INPUT_DIR.
+          Credentials are stored in <code>/config/env_overrides.json</code> — keep this file secure.
+        </div>
+
+        <div class="card">
+          <div class="card-title">Source Type</div>
+          <div class="source-tabs">
+            <button class="source-tab active" data-source="local" onclick="switchSource(this)">📁 Local / Volume Mount</button>
+            <button class="source-tab" data-source="private_cloud" onclick="switchSource(this)">☁ Self-Hosted Private Cloud</button>
+            <button class="source-tab" data-source="supernote_cloud" onclick="switchSource(this)">🌐 Supernote Cloud</button>
+            <button class="source-tab" data-source="webdav" onclick="switchSource(this)">📡 WebDAV</button>
+            <button class="source-tab" data-source="smb" onclick="switchSource(this)">🖧 SMB / Network Share</button>
+          </div>
+
+          <!-- Local -->
+          <div class="source-panel active" id="source-local">
+            <div class="alert alert-success">
+              ✓ No sync configuration needed. Map your Supernote data directory directly to INPUT_DIR
+              as a Docker volume mount. Files are read in-place.
+            </div>
+            <div class="form-row">
+              <label class="form-label">INPUT_DIR (volume mount path)</label>
+              <input type="text" id="src_local_input_dir" placeholder="/input">
+              <div class="form-hint">This should match the INPUT_DIR env var. Map it to your supernote_data directory.</div>
+            </div>
+            <pre style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-family:var(--mono);font-size:12px;color:var(--text2);margin-top:12px;">volumes:
+  - /path/to/supernote_data:/input:ro
+  - /path/to/obsidian/vault/Supernote:/output</pre>
+          </div>
+
+          <!-- Private Cloud -->
+          <div class="source-panel" id="source-private_cloud">
+            <div class="alert alert-info">
+              ℹ Self-hosted Supernote Private Cloud (Docker container). Files sync from your private cloud instance
+              via HTTP. Ensure port 19072 is reachable from this container.
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Private Cloud URL <span class="required">*</span></label>
+                <input type="url" id="src_pc_url" placeholder="http://10.17.52.5:19072">
+                <div class="form-hint">Base URL of your Supernote Private Cloud container.</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Username <span class="required">*</span></label>
+                <input type="text" id="src_pc_user" placeholder="admin@example.com">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password <span class="required">*</span></label>
+                <input type="password" id="src_pc_pass" placeholder="••••••••">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Sync Folder</label>
+                <input type="text" id="src_pc_folder" placeholder="/Note">
+                <div class="form-hint">Folder path on the private cloud to sync from. Default: /Note</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Sync Interval (seconds)</label>
+                <input type="number" id="src_pc_interval" placeholder="300" min="60">
+                <div class="form-hint">How often to pull from the private cloud. Default: 300s (5 min)</div>
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-name">Use HTTPS</div>
+                <div class="toggle-desc">Enable if your private cloud is behind a reverse proxy with TLS</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="src_pc_https"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-name">Verify SSL Certificate</div>
+                <div class="toggle-desc">Disable if using a self-signed certificate (like the default Supernote cert)</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="src_pc_verify_ssl" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <!-- Supernote Cloud -->
+          <div class="source-panel" id="source-supernote_cloud">
+            <div class="alert alert-warn">
+              ⚠ Supernote Cloud uses an unofficial sync method. Account credentials are stored locally.
+              Supernote may change their API at any time.
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Supernote Account Email <span class="required">*</span></label>
+                <input type="text" id="src_sc_user" placeholder="you@example.com">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password <span class="required">*</span></label>
+                <input type="password" id="src_sc_pass" placeholder="••••••••">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Sync Folder</label>
+                <input type="text" id="src_sc_folder" placeholder="/Note">
+                <div class="form-hint">Remote folder path to sync from. Default: /Note</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Sync Interval (seconds)</label>
+                <input type="number" id="src_sc_interval" placeholder="600" min="60">
+                <div class="form-hint">How often to sync. Be conservative to avoid rate limits. Default: 600s</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WebDAV -->
+          <div class="source-panel" id="source-webdav">
+            <div class="alert alert-info">
+              ℹ Connect to any WebDAV server (Nextcloud, OwnCloud, Synology, etc.) that contains
+              your Supernote .note files.
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">WebDAV URL <span class="required">*</span></label>
+                <input type="url" id="src_wd_url" placeholder="https://nextcloud.example.com/remote.php/dav/files/user/">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Username <span class="required">*</span></label>
+                <input type="text" id="src_wd_user" placeholder="username">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password / App Token <span class="required">*</span></label>
+                <input type="password" id="src_wd_pass" placeholder="••••••••">
+                <div class="form-hint">Use an app-specific token where possible (e.g. Nextcloud app passwords).</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Remote Path</label>
+                <input type="text" id="src_wd_path" placeholder="/Supernote/Note">
+                <div class="form-hint">Path on the WebDAV server containing .note files.</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Sync Interval (seconds)</label>
+                <input type="number" id="src_wd_interval" placeholder="300" min="60">
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-name">Verify SSL Certificate</div>
+                <div class="toggle-desc">Disable only if using a self-signed certificate</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="src_wd_verify_ssl" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <!-- SMB -->
+          <div class="source-panel" id="source-smb">
+            <div class="alert alert-info">
+              ℹ Mount a Samba/CIFS network share (TrueNAS, Synology, Windows share) containing
+              Supernote .note files. The share will be mounted inside the container.
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">SMB Host / IP <span class="required">*</span></label>
+                <input type="text" id="src_smb_host" placeholder="10.17.52.5">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Share Name <span class="required">*</span></label>
+                <input type="text" id="src_smb_share" placeholder="supernote_data">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Username</label>
+                <input type="text" id="src_smb_user" placeholder="guest">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Password</label>
+                <input type="password" id="src_smb_pass" placeholder="••••••••">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Remote Sub-Path</label>
+                <input type="text" id="src_smb_path" placeholder="/Note">
+                <div class="form-hint">Sub-folder within the share to mount/sync.</div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">SMB Version</label>
+                <select id="src_smb_version">
+                  <option value="3.0">3.0 (default)</option>
+                  <option value="2.1">2.1</option>
+                  <option value="2.0">2.0</option>
+                  <option value="1.0">1.0 (legacy)</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--r);font-family:var(--mono);font-size:11px;color:var(--text2);">
+              <strong style="color:var(--text);">Docker Compose mount example:</strong><br><br>
+              <pre style="color:var(--accent);">volumes:
+  - type: volume
+    driver_opts:
+      type: cifs
+      device: //10.17.52.5/supernote_data
+      o: username=user,password=pass,vers=3.0
+    target: /input</pre>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-primary" onclick="saveSourceConfig()">💾 Save Source Config</button>
+          <button class="btn btn-ghost" onclick="loadSourceConfig()">↺ Reset</button>
+        </div>
+      </div>
+
+      <!-- ── Ollama ── -->
+      <div class="page" id="page-ollama">
+        <div class="card">
+          <div class="card-title">Ollama Connection</div>
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-label">Ollama URL</label>
+              <input type="text" id="env_OLLAMA_BASE_URL" placeholder="http://ollama:11434">
+              <div class="form-hint">URL of your Ollama instance. Use the container service name (e.g. <code style="color:var(--accent)">http://ollama:11434</code>) if Ollama is on the same Docker network, or a LAN IP if it's on a different machine.</div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Vision Model</label>
+              <input type="text" id="env_OLLAMA_MODEL" placeholder="qwen2.5vl:7b">
+              <div class="form-hint">The vision-capable model to use for OCR. Recommended: <code style="color:var(--accent)">qwen2.5vl:7b</code> (best handwriting accuracy) or <code style="color:var(--accent)">llama3.2-vision:11b</code> (well-tested alternative). The model must be pulled in Ollama before use.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Connection Status</div>
+          <div id="ollamaHealthStatus" style="padding:8px 0;color:var(--text2);font-size:13px;">
+            Checking Ollama connectivity...
+          </div>
+          <button class="btn btn-ghost" style="margin-top:8px;" onclick="checkOllamaHealth()">↺ Check Connection</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-primary" onclick="saveOllamaConfig()">💾 Save Changes</button>
+          <button class="btn btn-ghost" onclick="loadOllamaConfig()">↺ Reset</button>
+        </div>
+        <p style="margin-top:10px;font-size:11px;font-family:var(--mono);color:var(--text3)">
+          ⚠ Changes are saved to <code>/config/env_overrides.json</code>. Restart the container to apply.
+        </p>
+      </div>
+
+      <!-- ── Obsidian ── -->
+      <div class="page" id="page-obsidian">
+        <div class="card">
+          <div class="card-title">Obsidian Integration</div>
+          <div class="alert alert-info">
+            💎 Obsidian sync settings coming soon. This page will let you configure how SnobMD integrates with your Obsidian vault and LiveSync setup.
+          </div>
+          <p style="color:var(--text2);font-size:13px;line-height:1.6;margin-top:12px;">
+            Planned settings include vault path configuration, LiveSync compatibility options, filename conventions, and note organization preferences.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── Notifiarr ── -->
+      <div class="page" id="page-notifiarr">
+        <div class="card">
+          <div class="card-title">Notifiarr Passthrough Setup</div>
+          <div class="alert alert-info" style="margin-bottom:16px;">
+            ℹ Notifications are sent via the Notifiarr Passthrough integration. Find your URL in the
+            Notifiarr dashboard under <strong>Integrations → Passthrough</strong>.<br><br>
+            URL format: <code style="color:var(--accent)">https://notifiarr.com/api/v1/notification/passthrough/&lt;API_KEY&gt;/&lt;CHANNEL_ID&gt;</code>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Notifiarr Passthrough URL</label>
+            <input type="url" id="env_NOTIFIARR_URL" placeholder="https://notifiarr.com/api/v1/notification/passthrough/xxxxx/123456789">
+            <div class="form-hint">Full URL including API key and Discord channel ID.</div>
+          </div>
+          <div class="toggle-row" style="margin-top:8px;">
+            <div class="toggle-info">
+              <div class="toggle-name">Enable Notifiarr Notifications</div>
+              <div class="toggle-desc">Send notifications for new conversions, errors, and version updates</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="env_NOTIFIARR_ENABLED"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Notification Events</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">New file converted</div>
+              <div class="toggle-desc">Notify when a .note file is successfully converted to Markdown</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="notif_on_convert" checked><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">Conversion error</div>
+              <div class="toggle-desc">Notify when a file fails to convert</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="notif_on_error" checked><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">New sn2md version available</div>
+              <div class="toggle-desc">Notify when PyPI has a newer version than what's installed</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="notif_on_version" checked><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-name">Sync conflicts detected</div>
+              <div class="toggle-desc">Notify when merge conflicts or duplicate sync files are found</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="notif_on_conflict" checked><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-primary" onclick="saveNotifiarr()">💾 Save</button>
+          <button class="btn btn-ghost" onclick="testNotifiarr()">🔔 Send Test Notification</button>
+        </div>
+        <div id="notifiarrTestResult" class="alert alert-hidden" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- ── Raw Config ── -->
+      <div class="page" id="page-rawconfig">
+        <div class="card">
+          <div class="card-title">sn2md.toml (generated)</div>
+          <div class="alert alert-warn">
+            ⚠ This file is auto-generated by the container at startup from your environment variables.
+            Edit environment variables instead — changes here will be overwritten on restart.
+          </div>
+          <pre class="log-viewer" id="rawConfigContent" style="height:300px;">Loading...</pre>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let currentPage = 'dashboard';
+let currentSource = 'local';
+
+// ── Navigation ────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.addEventListener('click', () => {
+    const page = item.dataset.page;
+    navigateTo(page);
+  });
+});
+
+const pageTitles = {
+  dashboard:  ['Dashboard',       'Overview & stats'],
+  logs:       ['Logs',            'Live watcher output'],
+  errors:     ['Errors & Conflicts', 'Failures and sync conflicts'],
+  config:     ['Environment',     'Container variables'],
+  source:     ['Supernote Source', 'Sync source configuration'],
+  notifiarr:  ['Notifiarr',       'Notification settings'],
+  rawconfig:  ['sn2md Config',    'Generated toml file'],
+};
+
+function navigateTo(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  document.getElementById(`page-${page}`).classList.add('active');
+  const [title, sub] = pageTitles[page] || [page, ''];
+  document.getElementById('pageTitle').textContent = title;
+  document.getElementById('pageSubtitle').textContent = sub;
+  currentPage = page;
+  loadPage(page);
+}
+
+function loadPage(page) {
+  if (page === 'dashboard') { loadStats(); loadFiles(); loadVersion(); }
+  if (page === 'logs') loadLogs();
+  if (page === 'errors') loadErrors();
+  if (page === 'config') loadConfig();
+  if (page === 'ollama') { loadOllamaConfig(); checkOllamaHealth(); }
+  if (page === 'source') loadSourceConfig();
+  if (page === 'obsidian') {} // placeholder
+  if (page === 'notifiarr') loadNotifiarrConfig();
+  if (page === 'rawconfig') loadRawConfig();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ── Health ────────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    const webuiDot = document.getElementById('healthWebui');
+    const ollamaDot = document.getElementById('healthOllama');
+    const ollamaText = document.getElementById('healthOllamaText');
+    webuiDot.className = 'health-dot ok';
+    if (d.ollama === 'ok') {
+      ollamaDot.className = 'health-dot ok';
+      ollamaText.textContent = 'connected';
+    } else {
+      ollamaDot.className = 'health-dot err';
+      ollamaText.textContent = 'unreachable';
+    }
+  } catch {}
+}
+
+// ── Version ───────────────────────────────────────────────────────────────
+async function loadVersion() {
+  const badge = document.getElementById('versionBadge');
+  const badgeText = document.getElementById('versionBadgeText');
+  const vInstalled = document.getElementById('vInstalled');
+  const vLatest = document.getElementById('vLatest');
+  const vStatus = document.getElementById('versionStatus');
+  const vStatusIcon = document.getElementById('vStatusIcon');
+  const vStatusText = document.getElementById('vStatusText');
+  const changelogLink = document.getElementById('changelogLink');
+
+  try {
+    const r = await fetch('/api/version');
+    const d = await r.json();
+    vInstalled.textContent = d.installed || '—';
+    vLatest.textContent = d.latest || (d.error ? 'unavailable' : '—');
+
+    if (d.error) {
+      vStatus.className = 'version-status loading';
+      vStatusIcon.textContent = '?';
+      vStatusText.textContent = 'PyPI unavailable';
+      badge.className = 'version-badge err';
+      badgeText.textContent = d.installed;
+    } else if (d.up_to_date) {
+      vStatus.className = 'version-status ok';
+      vStatusIcon.textContent = '✓';
+      vStatusText.textContent = 'Up to date';
+      badge.className = 'version-badge ok';
+      badgeText.textContent = d.installed;
+      changelogLink.style.display = 'none';
+    } else {
+      vStatus.className = 'version-status update';
+      vStatusIcon.textContent = '↑';
+      vStatusText.textContent = `Update available`;
+      badge.className = 'version-badge update';
+      badgeText.textContent = `${d.installed} → ${d.latest}`;
+      changelogLink.style.display = 'block';
+    }
+  } catch {
+    vStatus.className = 'version-status loading';
+    vStatusText.textContent = 'Error';
+  }
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    document.getElementById('statTotal').textContent = d.files_total ?? '—';
+    document.getElementById('statConverted').textContent = d.files_converted ?? '—';
+    document.getElementById('statPending').textContent = d.files_pending ?? '—';
+    document.getElementById('statErrors').textContent = d.total_errors ?? '—';
+
+    const pct = d.files_total > 0 ? Math.round((d.files_converted / d.files_total) * 100) : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressLabel').textContent = `${d.files_converted} of ${d.files_total} notes converted`;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Files ─────────────────────────────────────────────────────────────────
+async function loadFiles() {
+  try {
+    const r = await fetch('/api/files');
+    const files = await r.json();
+    const tbody = document.getElementById('filesTable');
+    if (!files.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:24px">No .note files found in INPUT_DIR</td></tr>';
+      return;
+    }
+    // Show most recent 20
+    const recent = files.sort((a, b) => new Date(b.mtime) - new Date(a.mtime)).slice(0, 20);
+    tbody.innerHTML = recent.map(f => {
+      const statusPill = f.converted
+        ? '<span class="status-pill ok">✓ converted</span>'
+        : '<span class="status-pill pending">⏳ pending</span>';
+      const size = f.size > 1024 ? (f.size / 1024).toFixed(1) + ' KB' : f.size + ' B';
+      const mtime = f.mtime ? new Date(f.mtime).toLocaleString() : '—';
+      return `<tr>
+        <td style="color:var(--text)">${f.basename}</td>
+        <td>${statusPill}</td>
+        <td>${size}</td>
+        <td>${mtime}</td>
+      </tr>`;
+    }).join('');
+  } catch {}
+}
+
+// ── Logs ──────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  const lines = document.getElementById('logLines')?.value || 200;
+  const viewer = document.getElementById('logViewer');
+  try {
+    const r = await fetch(`/api/logs?lines=${lines}`);
+    const d = await r.json();
+    const html = (d.log || 'No logs found.')
+      .split('\n')
+      .map(line => {
+        if (/ERROR|FAIL|error/i.test(line)) return `<span class="log-error">${esc(line)}</span>`;
+        if (/WARN|warn/i.test(line)) return `<span class="log-warn">${esc(line)}</span>`;
+        if (/Done:|converted|✓/i.test(line)) return `<span class="log-ok">${esc(line)}</span>`;
+        return `<span class="log-info">${esc(line)}</span>`;
+      }).join('\n');
+    viewer.innerHTML = html;
+    if (document.getElementById('autoScrollLog')?.checked) {
+      viewer.scrollTop = viewer.scrollHeight;
+    }
+  } catch {
+    viewer.textContent = 'Failed to load logs.';
+  }
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Errors ────────────────────────────────────────────────────────────────
+async function loadErrors() {
+  try {
+    const r = await fetch('/api/errors');
+    const d = await r.json();
+
+    const errorList = document.getElementById('errorList');
+    if (!d.errors?.length) {
+      errorList.innerHTML = '<p style="color:var(--green);font-family:var(--mono);font-size:12px;">✓ No errors found in log.</p>';
+    } else {
+      errorList.innerHTML = `<div class="log-viewer" style="height:200px;">${
+        d.errors.map(e => `<span class="log-error">${esc(e)}</span>`).join('\n')
+      }</div>`;
+    }
+
+    const conflictList = document.getElementById('conflictList');
+    const badge = document.getElementById('errorBadge');
+    const total = (d.errors?.length || 0) + (d.conflicts?.length || 0);
+
+    if (total > 0) {
+      badge.textContent = total;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    if (!d.conflicts?.length) {
+      conflictList.innerHTML = '<p style="color:var(--green);font-family:var(--mono);font-size:12px;">✓ No sync conflicts detected.</p>';
+    } else {
+      conflictList.innerHTML = d.conflicts.map(c => `
+        <div class="conflict-item">
+          <div class="conflict-icon">${c.type === 'merge_conflict' ? '⚡' : '📄'}</div>
+          <div>
+            <div class="conflict-path">${esc(c.path)}</div>
+            <div class="conflict-type">${c.type === 'merge_conflict' ? 'Merge conflict markers found' : 'Duplicate/conflict file'}</div>
+          </div>
+        </div>`).join('');
+    }
+  } catch {}
+}
+
+// ── Config ────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/env');
+    const d = await r.json();
+    const env = { ...d.env, ...d.overrides };
+
+    const fields = ['INPUT_DIR','OUTPUT_DIR',
+      'POLL_INTERVAL','OUTPUT_FILENAME_TEMPLATE','OUTPUT_PATH_TEMPLATE',
+      'SN2MD_PROMPT','NOTIFIARR_URL'];
+
+    fields.forEach(k => {
+      const el = document.getElementById(`env_${k}`);
+      if (el) el.value = env[k] ?? '';
+    });
+
+    const checks = ['SCAN_EXISTING','FORCE_RECONVERT','NOTIFIARR_ENABLED'];
+    checks.forEach(k => {
+      const el = document.getElementById(`env_${k}`);
+      if (el) el.checked = (env[k] === 'true');
+    });
+  } catch {}
+}
+
+async function saveConfig() {
+  const fields = ['INPUT_DIR','OUTPUT_DIR',
+    'POLL_INTERVAL','OUTPUT_FILENAME_TEMPLATE','OUTPUT_PATH_TEMPLATE',
+    'SN2MD_PROMPT','NOTIFIARR_URL'];
+  const checks = ['SCAN_EXISTING','FORCE_RECONVERT','NOTIFIARR_ENABLED'];
+
+  const payload = {};
+  fields.forEach(k => {
+    const el = document.getElementById(`env_${k}`);
+    if (el) payload[k] = el.value;
+  });
+  checks.forEach(k => {
+    const el = document.getElementById(`env_${k}`);
+    if (el) payload[k] = el.checked ? 'true' : 'false';
+  });
+
+  try {
+    const r = await fetch('/api/env', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.ok) toast('✓ Settings saved. Restart container to apply.', 'ok');
+    else toast('Failed to save: ' + d.error, 'err');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+// ── Ollama Config ─────────────────────────────────────────────────────────
+async function loadOllamaConfig() {
+  try {
+    const r = await fetch('/api/env');
+    const d = await r.json();
+    const env = { ...d.env, ...d.overrides };
+    const urlEl = document.getElementById('env_OLLAMA_BASE_URL');
+    const modelEl = document.getElementById('env_OLLAMA_MODEL');
+    if (urlEl) urlEl.value = env.OLLAMA_BASE_URL || '';
+    if (modelEl) modelEl.value = env.OLLAMA_MODEL || '';
+  } catch {}
+}
+
+async function saveOllamaConfig() {
+  const urlEl = document.getElementById('env_OLLAMA_BASE_URL');
+  const modelEl = document.getElementById('env_OLLAMA_MODEL');
+  const payload = {
+    OLLAMA_BASE_URL: urlEl?.value || '',
+    OLLAMA_MODEL: modelEl?.value || '',
+  };
+  try {
+    const r = await fetch('/api/env', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.ok) toast('✓ Ollama settings saved. Restart container to apply.', 'ok');
+    else toast('Failed to save: ' + d.error, 'err');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function checkOllamaHealth() {
+  const el = document.getElementById('ollamaHealthStatus');
+  if (el) el.textContent = 'Checking...';
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    if (el) {
+      if (d.ollama === 'ok') {
+        el.innerHTML = `<span style="color:var(--green)">✓ Ollama is reachable at ${esc(d.ollama_url)}</span>`;
+      } else {
+        el.innerHTML = `<span style="color:var(--red)">✗ Ollama unreachable at ${esc(d.ollama_url)}</span><br><span style="color:var(--text2);font-size:12px;">Check your OLLAMA_BASE_URL and ensure the container is running.</span>`;
+      }
+    }
+  } catch {
+    if (el) el.innerHTML = '<span style="color:var(--red)">✗ Could not reach health endpoint</span>';
+  }
+}
+
+// ── Source Config ─────────────────────────────────────────────────────────
+function switchSource(btn) {
+  document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.source-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  currentSource = btn.dataset.source;
+  document.getElementById(`source-${currentSource}`)?.classList.add('active');
+}
+
+async function loadSourceConfig() {
+  try {
+    const r = await fetch('/api/env');
+    const d = await r.json();
+    const env = { ...d.env, ...d.overrides };
+
+    const type = env.SUPERNOTE_SOURCE_TYPE || 'local';
+    const tabBtn = document.querySelector(`[data-source="${type}"]`);
+    if (tabBtn) switchSource(tabBtn);
+
+    // Populate fields
+    const map = {
+      'src_local_input_dir': 'INPUT_DIR',
+      'src_pc_url': 'SUPERNOTE_PRIVATE_CLOUD_URL',
+      'src_pc_user': 'SUPERNOTE_PRIVATE_CLOUD_USER',
+      'src_pc_pass': 'SUPERNOTE_PRIVATE_CLOUD_PASS',
+      'src_pc_folder': 'SUPERNOTE_SYNC_FOLDER',
+      'src_pc_interval': 'SUPERNOTE_SYNC_INTERVAL',
+      'src_sc_user': 'SUPERNOTE_CLOUD_USER',
+      'src_sc_pass': 'SUPERNOTE_CLOUD_PASS',
+      'src_sc_folder': 'SUPERNOTE_SYNC_FOLDER',
+      'src_sc_interval': 'SUPERNOTE_SYNC_INTERVAL',
+    };
+    Object.entries(map).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = env[key] || '';
+    });
+  } catch {}
+}
+
+async function saveSourceConfig() {
+  const payload = { SUPERNOTE_SOURCE_TYPE: currentSource };
+
+  const map = {
+    'src_pc_url': 'SUPERNOTE_PRIVATE_CLOUD_URL',
+    'src_pc_user': 'SUPERNOTE_PRIVATE_CLOUD_USER',
+    'src_pc_pass': 'SUPERNOTE_PRIVATE_CLOUD_PASS',
+    'src_pc_folder': 'SUPERNOTE_SYNC_FOLDER',
+    'src_pc_interval': 'SUPERNOTE_SYNC_INTERVAL',
+    'src_sc_user': 'SUPERNOTE_CLOUD_USER',
+    'src_sc_pass': 'SUPERNOTE_CLOUD_PASS',
+  };
+  Object.entries(map).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el?.value) payload[key] = el.value;
+  });
+
+  try {
+    const r = await fetch('/api/env', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.ok) toast('✓ Source config saved.', 'ok');
+    else toast('Failed: ' + d.error, 'err');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+// ── Notifiarr ─────────────────────────────────────────────────────────────
+async function loadNotifiarrConfig() {
+  await loadConfig();
+}
+
+async function saveNotifiarr() {
+  const url = document.getElementById('env_NOTIFIARR_URL')?.value || '';
+  const enabled = document.getElementById('env_NOTIFIARR_ENABLED')?.checked;
+  try {
+    const r = await fetch('/api/env', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ NOTIFIARR_URL: url, NOTIFIARR_ENABLED: enabled ? 'true' : 'false' })
+    });
+    const d = await r.json();
+    if (d.ok) toast('✓ Notifiarr settings saved.', 'ok');
+    else toast('Failed: ' + d.error, 'err');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function testNotifiarr() {
+  const url = document.getElementById('env_NOTIFIARR_URL')?.value;
+  const resultEl = document.getElementById('notifiarrTestResult');
+  resultEl.className = 'alert alert-info';
+  resultEl.textContent = '⟳ Sending test notification...';
+
+  try {
+    const r = await fetch('/api/notifiarr/test', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ url })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      resultEl.className = 'alert alert-success';
+      resultEl.textContent = '✓ Test notification sent successfully.';
+    } else {
+      resultEl.className = 'alert alert-error';
+      resultEl.textContent = '✗ Failed: ' + (d.error || 'unknown error');
+    }
+  } catch (e) {
+    resultEl.className = 'alert alert-error';
+    resultEl.textContent = '✗ Request failed: ' + e.message;
+  }
+}
+
+// ── Raw Config ────────────────────────────────────────────────────────────
+async function loadRawConfig() {
+  try {
+    const r = await fetch('/api/config');
+    const d = await r.json();
+    document.getElementById('rawConfigContent').textContent = d.content;
+  } catch {
+    document.getElementById('rawConfigContent').textContent = 'Failed to load config.';
+  }
+}
+
+// ── Refresh all ───────────────────────────────────────────────────────────
+function refreshAll() {
+  loadPage(currentPage);
+  checkHealth();
+  loadVersion();
+  loadErrors(); // keep badge updated
+  toast('↺ Refreshed', 'info');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(function init() {
+  checkHealth();
+  setInterval(checkHealth, 30000);
+  loadStats();
+  loadFiles();
+  loadVersion();
+  loadErrors();
+
+  // Auto-refresh logs every 10s if on logs page
+  setInterval(() => {
+    if (currentPage === 'logs') loadLogs();
+    if (currentPage === 'errors') loadErrors();
+  }, 10000);
+})();
+</script>
+</body>
+</html>

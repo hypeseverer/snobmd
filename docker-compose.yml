@@ -54,7 +54,7 @@ services:
       # ── Supernote source (default: local volume mount) ────────────────────
       # Options: local | private_cloud | supernote_cloud | webdav | smb
       SUPERNOTE_SOURCE_TYPE: "local"
-      # SUPERNOTE_PRIVATE_CLOUD_URL: "http://10.17.52.5:19072"
+      # SUPERNOTE_PRIVATE_CLOUD_URL: "http://YOUR.TRUENAS.IP:19072"
       # SUPERNOTE_PRIVATE_CLOUD_USER: "admin@example.com"
       # SUPERNOTE_PRIVATE_CLOUD_PASS: "yourpassword"
       # SUPERNOTE_SYNC_FOLDER: "/Note"

@@ -684,7 +684,7 @@ textarea { resize: vertical; min-height: 80px; }
           <div class="form-grid">
             <div class="form-row">
               <label class="form-label">OLLAMA_BASE_URL <span class="required">*</span></label>
-              <input type="url" id="env_OLLAMA_BASE_URL" placeholder="http://10.17.52.5:11434">
+              <input type="url" id="env_OLLAMA_BASE_URL" placeholder="http://YOUR.TRUENAS.IP:11434">
               <div class="form-hint">URL of your Ollama instance.</div>
             </div>
             <div class="form-row">
@@ -806,7 +806,7 @@ textarea { resize: vertical; min-height: 80px; }
             <div class="form-grid">
               <div class="form-row">
                 <label class="form-label">Private Cloud URL <span class="required">*</span></label>
-                <input type="url" id="src_pc_url" placeholder="http://10.17.52.5:19072">
+                <input type="url" id="src_pc_url" placeholder="http://YOUR.TRUENAS.IP:19072">
                 <div class="form-hint">Base URL of your Supernote Private Cloud container.</div>
               </div>
               <div class="form-row">
@@ -920,7 +920,7 @@ textarea { resize: vertical; min-height: 80px; }
             <div class="form-grid">
               <div class="form-row">
                 <label class="form-label">SMB Host / IP <span class="required">*</span></label>
-                <input type="text" id="src_smb_host" placeholder="10.17.52.5">
+                <input type="text" id="src_smb_host" placeholder="YOUR.TRUENAS.IP">
               </div>
               <div class="form-row">
                 <label class="form-label">Share Name <span class="required">*</span></label>
@@ -955,7 +955,7 @@ textarea { resize: vertical; min-height: 80px; }
   - type: volume
     driver_opts:
       type: cifs
-      device: //10.17.52.5/supernote_data
+      device: //YOUR.TRUENAS.IP/supernote_data
       o: username=user,password=pass,vers=3.0
     target: /input</pre>
             </div>

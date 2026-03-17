@@ -24,6 +24,7 @@ on:
 env:
   DOCKERHUB_USERNAME: hypeseverer
   IMAGE_NAME: hypeseverer/snobmd
+  NOTIFIARR_URL: ${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}
 
 jobs:
   build-and-push:
@@ -79,7 +80,7 @@ jobs:
           readme-filepath: ./README.md
 
       - name: Notify via Notifiarr (success)
-        if: success() && secrets.NOTIFIARR_PASSTHROUGH_URL != 'disabled'
+        if: if: success() && env.NOTIFIARR_URL != 'disabled'
         run: |
           curl -s -X POST "${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}" \
             -H "Content-Type: application/json" \
@@ -99,7 +100,7 @@ jobs:
             }'
 
       - name: Notify via Notifiarr (failure)
-        if: failure() && secrets.NOTIFIARR_PASSTHROUGH_URL != 'disabled'
+        if: failure() && env.NOTIFIARR_URL != 'disabled'
         run: |
           curl -s -X POST "${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}" \
             -H "Content-Type: application/json" \

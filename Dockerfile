@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pinned sn2md version and the Ollama LLM plugin
-RUN pip install --no-cache-dir sn2md==${SN2MD_VERSION} llm-ollama
+RUN pip install --no-cache-dir sn2md==${SN2MD_VERSION}
+RUN pip install --no-cache-dir llm-ollama
 
 # Create standard directories
 RUN mkdir -p /input /output /config

@@ -79,7 +79,7 @@ jobs:
           readme-filepath: ./README.md
 
       - name: Notify via Notifiarr (success)
-        if: success()
+        if: success() && secrets.NOTIFIARR_PASSTHROUGH_URL != 'disabled'
         run: |
           curl -s -X POST "${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}" \
             -H "Content-Type: application/json" \
@@ -99,7 +99,7 @@ jobs:
             }'
 
       - name: Notify via Notifiarr (failure)
-        if: failure()
+        if: failure() && secrets.NOTIFIARR_PASSTHROUGH_URL != 'disabled'
         run: |
           curl -s -X POST "${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}" \
             -H "Content-Type: application/json" \

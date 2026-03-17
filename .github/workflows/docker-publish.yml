@@ -25,6 +25,7 @@ env:
   DOCKERHUB_USERNAME: hypeseverer
   IMAGE_NAME: hypeseverer/snobmd
   NOTIFIARR_URL: ${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}
+  NOTIFIARR_URL: ${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}
 
 jobs:
   build-and-push:

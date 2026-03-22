@@ -118,7 +118,7 @@ PYEOF
     # Prepend frontmatter to the markdown file
     local tmpfile
     tmpfile=$(mktemp)
-    printf "${frontmatter}" > "${tmpfile}"
+    printf '%s' "${frontmatter}" > "${tmpfile}"
     cat "${mdfile}" >> "${tmpfile}"
     mv "${tmpfile}" "${mdfile}"
 

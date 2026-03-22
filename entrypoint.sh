@@ -143,6 +143,8 @@ convert_file() {
         --config "${CONFIG_FILE}" \
         --output "${output_subdir}" \
         file "${filepath}"; then
+        find "${output_subdir}" -name "*.png" -delete
+        find "${output_subdir}" -name "*.jpg" -delete
         info "Done: ${rel_dir}/${basename}.md"
         tag_file "${output_subdir}/${basename}.md"
     else

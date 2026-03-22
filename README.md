@@ -207,3 +207,5 @@ Once `.md` files land in your Obsidian vault folder, Obsidian LiveSync propagate
 - [sn2md](https://github.com/dsummersl/sn2md) by [Dane Summers (dsummersl)](https://github.com/dsummersl) — core conversion tool and OCR prompt configuration
 - [Ollama](https://ollama.com) — local LLM runtime
 - [Supernote by Ratta](https://supernote.com) — the device
+
+- 

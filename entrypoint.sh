@@ -57,22 +57,35 @@ convert_file() {
     local filepath="$1"
     local basename
     basename=$(basename "${filepath}" .note)
-    local expected_output="${OUTPUT_DIR}/${basename}/${basename}.md"
 
-    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${expected_output}" ]]; then
+    local rel_dir
+    rel_dir=$(dirname "${filepath#${INPUT_DIR}/}")
+    rel_dir="${rel_dir#*/Supernote/Note/}"
+
+    local output_subdir="${OUTPUT_DIR}/${rel_dir}"
+    local lockfile="/tmp/.snobmd_lock_${basename}"
+
+    if [[ -f "${lockfile}" ]]; then
+        return 0
+    fi
+
+    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}.md" ]]; then
         info "Skipping already-converted: ${filepath}"
         return 0
     fi
 
+    touch "${lockfile}"
+    mkdir -p "${output_subdir}"
     info "Converting: ${filepath}"
     if sn2md \
         --config "${CONFIG_FILE}" \
-        --output "${OUTPUT_DIR}" \
+        --output "${output_subdir}" \
         file "${filepath}"; then
-        info "Done: ${basename}.md"
+        info "Done: ${rel_dir}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi
+    rm -f "${lockfile}"
 }
 
 # ── Scan existing files on startup ───────────────────────────────────────────
@@ -87,9 +100,6 @@ fi
 # ── Watch for new/modified files ─────────────────────────────────────────────
 info "Watching ${INPUT_DIR} for new .note files (poll interval: ${POLL_INTERVAL}s)..."
 
-# Primary: inotifywait for real-time detection
-# Fallback: polling loop in background for NFS/CIFS mounts where inotify may not fire
-
 inotifywait_available=true
 if ! command -v inotifywait &> /dev/null; then
     warn "inotifywait not available, falling back to polling only"
@@ -103,7 +113,6 @@ poll_loop() {
     while true; do
         sleep "${POLL_INTERVAL}"
         while IFS= read -r -d '' file; do
-            # Only process files newer than our seen marker
             if [[ "${file}" -nt "${seen_file}" ]]; then
                 convert_file "${file}"
             fi
@@ -125,6 +134,5 @@ if [[ "${inotifywait_available}" == "true" ]]; then
         convert_file "${filepath}"
     done
 else
-    # If no inotifywait, just keep the polling loop alive
     wait
 fi

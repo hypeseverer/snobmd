@@ -166,6 +166,7 @@ convert_file() {
     local output_subdir="${OUTPUT_DIR}/${rel_dir}"
     local lockfile="/tmp/.snobmd_lock_${basename}"
 
+    # Per-file lock — prevents inotify + poll loop from double-triggering same file
     if [[ -f "${lockfile}" ]]; then
         return 0
     fi
@@ -179,14 +180,26 @@ convert_file() {
     fi
 
     touch "${lockfile}"
-    mkdir -p "${output_subdir}"
+
+    # Use a per-note isolated staging directory in /tmp so concurrent conversions
+    # never collide on sn2md's internal UUID temp folders
+    local staging_dir="/tmp/.snobmd_staging_${basename}"
+    rm -rf "${staging_dir}"
+    mkdir -p "${staging_dir}"
+
     info "Converting: ${filepath}"
     if sn2md \
         --config "${CONFIG_FILE}" \
-        --output "${output_subdir}" \
+        --output "${staging_dir}" \
         file "${filepath}"; then
-        find "${output_subdir}" -name "*.png" -delete
-        find "${output_subdir}" -name "*.jpg" -delete
+        # Clean up intermediate image files from staging
+        find "${staging_dir}" -name "*.png" -delete
+        find "${staging_dir}" -name "*.jpg" -delete
+        # Move staged output into final output location
+        mkdir -p "${output_subdir}"
+        # Remove existing output folder if reconverting
+        rm -rf "${output_subdir:?}/${basename}"
+        mv "${staging_dir}/${basename}" "${output_subdir}/${basename}"
         # Chown output files if OUTPUT_UID is set in environment
         if [[ -n "${OUTPUT_UID:-}" ]]; then
             chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
@@ -197,6 +210,8 @@ convert_file() {
     else
         err "Failed to convert: ${filepath}"
     fi
+
+    rm -rf "${staging_dir}"
     rm -f "${lockfile}"
 }
 

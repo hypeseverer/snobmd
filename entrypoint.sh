@@ -131,9 +131,12 @@ convert_file() {
     local basename
     basename=$(basename "${filepath}" .note)
 
+    # Strip INPUT_DIR prefix, then strip everything up to and including
+    # the last occurrence of /Supernote/Note/ to get clean relative path
     local rel_dir
     rel_dir=$(dirname "${filepath#${INPUT_DIR}/}")
-    rel_dir="${rel_dir#*/Supernote/Note/}"
+    # Use sed to strip everything up to and including Supernote/Note/
+    rel_dir=$(echo "${rel_dir}" | sed 's|.*Supernote/Note/||')
 
     local output_subdir="${OUTPUT_DIR}/${rel_dir}"
     local lockfile="/tmp/.snobmd_lock_${basename}"

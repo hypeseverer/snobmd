@@ -1,36 +1,39 @@
 name: Build and Push to Docker Hub
 
-# Trigger: push a tag like "sn2md-2.6.0" or "sn2md-2.7.0"
-# This ties your Docker image version directly to the upstream sn2md PyPI version.
+# Trigger: push a tag like "snobmd-1.0.0"
+# This uses SnobMD's own versioning, decoupled from upstream sn2md releases.
 #
-# To release a new image after upstream publishes a new sn2md version:
-#   1. The check-sn2md-version.yml workflow will notify you via Notifiarr when upstream publishes
-#   2. git tag sn2md-<NEW_VERSION>   e.g. git tag sn2md-2.7.0
-#   3. git push origin sn2md-2.7.0
-#   4. This workflow builds and pushes:
-#        hypeseverer/snobmd:sn2md-2.7.0   (pinned version tag)
+# To release a new image:
+#   1. git tag snobmd-<VERSION>   e.g. git tag snobmd-1.0.0
+#   2. git push origin snobmd-1.0.0
+#   3. This workflow builds and pushes:
+#        hypeseverer/snobmd:snobmd-1.0.0   (pinned version tag)
 #        hypeseverer/snobmd:latest          (floating latest tag)
-#   5. Notifiarr sends a Discord notification confirming success (or failure)
+#   4. Notifiarr sends a Discord notification confirming success (or failure)
+#
+# To update the upstream sn2md version baked into the image:
+#   - Change SN2MD_VERSION in the env block below
+#   - Bump the snobmd version tag accordingly
 #
 # Required GitHub secret:
 #   NOTIFIARR_PASSTHROUGH_URL — full Notifiarr passthrough URL including your API key
-#   Format: https://notifiarr.com/api/v1/notification/passthrough/<YOUR_API_KEY>/<CHANNEL_ID>
 
 on:
   push:
     tags:
-      - 'sn2md-*'
+      - 'snobmd-*'
   workflow_dispatch:
     inputs:
-      sn2md_version:
-        description: 'sn2md version to build (e.g. 2.6.0)'
+      snobmd_version:
+        description: 'SnobMD version to build (e.g. 1.0.0)'
         required: true
-        default: '2.6.0'
+        default: '1.0.0'
 
 env:
   DOCKERHUB_USERNAME: hypeseverer
   IMAGE_NAME: hypeseverer/snobmd
   NOTIFIARR_URL: ${{ secrets.NOTIFIARR_PASSTHROUGH_URL }}
+  SN2MD_VERSION: '2.6.0'
 
 jobs:
   build-and-push:
@@ -41,17 +44,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract sn2md version from tag
+      - name: Extract SnobMD version
         id: version
         run: |
-          # Tag is "sn2md-2.6.0" → SN2MD_VERSION becomes "2.6.0"
+          # Tag is "snobmd-1.0.0" → SNOBMD_VERSION becomes "1.0.0"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            SN2MD_VERSION="${{ github.event.inputs.sn2md_version }}"
+            SNOBMD_VERSION="${{ github.event.inputs.snobmd_version }}"
           else
-            SN2MD_VERSION="${GITHUB_REF_NAME#sn2md-}"
+            SNOBMD_VERSION="${GITHUB_REF_NAME#snobmd-}"
           fi
-          echo "SN2MD_VERSION=${SN2MD_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Building with sn2md version: ${SN2MD_VERSION}"
+          echo "SNOBMD_VERSION=${SNOBMD_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building SnobMD version: ${SNOBMD_VERSION} with sn2md: ${{ env.SN2MD_VERSION }}"
 
       - name: Set up QEMU (for multi-arch builds)
         uses: docker/setup-qemu-action@v3
@@ -63,9 +66,6 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
-          # Add DOCKERHUB_TOKEN to your GitHub repo secrets:
-          # Settings → Secrets and variables → Actions → New repository secret
-          # Generate token at: https://hub.docker.com/settings/security
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push multi-arch image
@@ -74,11 +74,10 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          # Pass the version as a build arg so it's baked into the image
           build-args: |
-            SN2MD_VERSION=${{ steps.version.outputs.SN2MD_VERSION }}
+            SN2MD_VERSION=${{ env.SN2MD_VERSION }}
           tags: |
-            ${{ env.IMAGE_NAME }}:sn2md-${{ steps.version.outputs.SN2MD_VERSION }}
+            ${{ env.IMAGE_NAME }}:snobmd-${{ steps.version.outputs.SNOBMD_VERSION }}
             ${{ env.IMAGE_NAME }}:latest
 
       - name: Update Docker Hub description
@@ -104,7 +103,7 @@ jobs:
                 "color": "00AA00",
                 "text": {
                   "title": "✅ snobmd image published",
-                  "content": "New Docker image pushed to Docker Hub.\n\n**Version:** sn2md-${{ steps.version.outputs.SN2MD_VERSION }}\n**Tags:** `sn2md-${{ steps.version.outputs.SN2MD_VERSION }}` and `latest`\n**Image:** `hypeseverer/snobmd`\n\nDeploy with:\n`docker pull hypeseverer/snobmd:latest`"
+                  "content": "New Docker image pushed to Docker Hub.\n\n**Version:** snobmd-${{ steps.version.outputs.SNOBMD_VERSION }}\n**sn2md:** ${{ env.SN2MD_VERSION }}\n**Tags:** `snobmd-${{ steps.version.outputs.SNOBMD_VERSION }}` and `latest`\n**Image:** `hypeseverer/snobmd`\n\nDeploy with:\n`docker pull hypeseverer/snobmd:latest`"
                 }
               }
             }'
@@ -124,7 +123,7 @@ jobs:
                 "color": "FF0000",
                 "text": {
                   "title": "❌ snobmd build failed",
-                  "content": "Docker build or push failed for sn2md-${{ steps.version.outputs.SN2MD_VERSION }}.\n\nCheck the Actions log:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  "content": "Docker build or push failed for snobmd-${{ steps.version.outputs.SNOBMD_VERSION }}.\n\nCheck the Actions log:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 }
               }
             }'

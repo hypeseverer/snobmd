@@ -139,7 +139,6 @@ with open(path, 'r') as f:
 # sn2md adds its own frontmatter, and tag_file prepends another
 frontmatter_blocks = list(re.finditer(r'^---\n.*?^---\n', content, re.DOTALL | re.MULTILINE))
 if len(frontmatter_blocks) > 1:
-    # Remove all but the last frontmatter block
     last = frontmatter_blocks[-1]
     content = content[last.start():]
 
@@ -188,6 +187,10 @@ convert_file() {
         file "${filepath}"; then
         find "${output_subdir}" -name "*.png" -delete
         find "${output_subdir}" -name "*.jpg" -delete
+        # Chown output files if OUTPUT_UID is set in environment
+        if [[ -n "${OUTPUT_UID:-}" ]]; then
+            chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
+        fi
         info "Done: ${rel_dir}/${basename}.md"
         tag_file "${output_subdir}/${basename}/${basename}.md"
         clean_md "${output_subdir}/${basename}/${basename}.md"

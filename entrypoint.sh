@@ -53,13 +53,10 @@ done
 info "Ollama is up."
 
 # ── Tag generation function ───────────────────────────────────────────────────
-# Sends the converted markdown to a text model and prepends YAML frontmatter
-# with generated tags. Uses TAG_MODEL env var, falls back to qwen3:4b.
 tag_file() {
     local mdfile="$1"
     local tag_model="${TAG_MODEL:-qwen3:4b}"
 
-    # Skip tagging if disabled
     if [[ "${TAGGING_ENABLED:-true}" != "true" ]]; then
         return 0
     fi
@@ -86,7 +83,6 @@ tag_file() {
         return 0
     fi
 
-    # Extract the response text
     local tags_raw
     tags_raw=$(echo "${response}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('response',''))" 2>/dev/null)
 
@@ -95,11 +91,9 @@ tag_file() {
         return 0
     fi
 
-    # Build YAML frontmatter from tag lines
     local frontmatter
     frontmatter="---\ntags:"
     while IFS= read -r line; do
-        # Strip leading # and whitespace, skip empty lines
         local tag
         tag=$(echo "${line}" | sed 's/^#*//' | tr -d '[:space:]')
         if [[ -n "${tag}" ]]; then
@@ -108,7 +102,6 @@ tag_file() {
     done <<< "${tags_raw}"
     frontmatter="${frontmatter}\n---\n"
 
-    # Prepend frontmatter to the markdown file
     local tmpfile
     tmpfile=$(mktemp)
     printf "${frontmatter}" > "${tmpfile}"
@@ -136,8 +129,11 @@ convert_file() {
     fi
 
     if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}.md" ]]; then
-        info "Skipping already-converted: ${filepath}"
-        return 0
+        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}.md" ]]; then
+            info "Skipping already-converted: ${filepath}"
+            return 0
+        fi
+        info "Note updated since last conversion, reconverting: ${filepath}"
     fi
 
     touch "${lockfile}"
@@ -148,7 +144,6 @@ convert_file() {
         --output "${output_subdir}" \
         file "${filepath}"; then
         info "Done: ${rel_dir}/${basename}.md"
-        # Run tagging as a post-processing step
         tag_file "${output_subdir}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"

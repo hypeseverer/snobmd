@@ -21,6 +21,11 @@ on:
     tags:
       - 'sn2md-*'
   workflow_dispatch:
+    inputs:
+      sn2md_version:
+        description: 'sn2md version to build (e.g. 2.6.0)'
+        required: true
+        default: '2.6.0'
 
 env:
   DOCKERHUB_USERNAME: hypeseverer
@@ -40,7 +45,11 @@ jobs:
         id: version
         run: |
           # Tag is "sn2md-2.6.0" → SN2MD_VERSION becomes "2.6.0"
-          SN2MD_VERSION="${GITHUB_REF_NAME#sn2md-}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SN2MD_VERSION="${{ github.event.inputs.sn2md_version }}"
+          else
+            SN2MD_VERSION="${GITHUB_REF_NAME#sn2md-}"
+          fi
           echo "SN2MD_VERSION=${SN2MD_VERSION}" >> "$GITHUB_OUTPUT"
           echo "Building with sn2md version: ${SN2MD_VERSION}"
 

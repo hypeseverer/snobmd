@@ -191,6 +191,7 @@ convert_file() {
     if sn2md \
         --config "${CONFIG_FILE}" \
         --output "${staging_dir}" \
+        ${FORCE_RECONVERT:+--force} \
         file "${filepath}"; then
         # Clean up intermediate image files from staging
         find "${staging_dir}" -name "*.png" -delete

@@ -63,34 +63,47 @@ tag_file() {
 
     info "Generating tags for: ${mdfile}"
 
-    local content
-    content=$(cat "${mdfile}")
-
-    local payload
-    payload=$(printf '%s' "{
-        \"model\": \"${tag_model}\",
-        \"prompt\": \"Read the following markdown note and return a list of relevant Obsidian tags based on the content. Return ONLY tags, one per line, in lowercase with hyphens instead of spaces, prefixed with #. No explanation, no preamble, no other text.\n\nNote content:\n${content}\",
-        \"stream\": false
-    }")
-
+    # Use Python to safely build and send the JSON payload — avoids shell
+    # escaping issues with quotes, newlines, and special characters in content
     local response
-    response=$(curl -sf -X POST "${OLLAMA_BASE_URL}/api/generate" \
-        -H "Content-Type: application/json" \
-        -d "${payload}" 2>/dev/null)
+    response=$(python3 - <<PYEOF
+import json, urllib.request, sys
+
+with open("${mdfile}", "r") as f:
+    content = f.read()
+
+payload = json.dumps({
+    "model": "${tag_model}",
+    "prompt": (
+        "Read the following markdown note and return a list of relevant Obsidian tags "
+        "based on the content. Return ONLY tags, one per line, in lowercase with hyphens "
+        "instead of spaces, prefixed with #. No explanation, no preamble, no other text.\n\n"
+        "Note content:\n" + content
+    ),
+    "stream": False
+}).encode("utf-8")
+
+req = urllib.request.Request(
+    "${OLLAMA_BASE_URL}/api/generate",
+    data=payload,
+    headers={"Content-Type": "application/json"}
+)
+try:
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+        print(result.get("response", ""))
+except Exception as e:
+    print("", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+)
 
     if [[ -z "${response}" ]]; then
         warn "No response from Ollama for tagging, skipping."
         return 0
     fi
 
-    local tags_raw
-    tags_raw=$(echo "${response}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('response',''))" 2>/dev/null)
-
-    if [[ -z "${tags_raw}" ]]; then
-        warn "Could not parse tags from Ollama response, skipping."
-        return 0
-    fi
-
+    # Build YAML frontmatter from tag lines
     local frontmatter
     frontmatter="---\ntags:"
     while IFS= read -r line; do
@@ -99,9 +112,10 @@ tag_file() {
         if [[ -n "${tag}" ]]; then
             frontmatter="${frontmatter}\n  - ${tag}"
         fi
-    done <<< "${tags_raw}"
+    done <<< "${response}"
     frontmatter="${frontmatter}\n---\n"
 
+    # Prepend frontmatter to the markdown file
     local tmpfile
     tmpfile=$(mktemp)
     printf "${frontmatter}" > "${tmpfile}"
@@ -128,8 +142,8 @@ convert_file() {
         return 0
     fi
 
-    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}.md" ]]; then
-        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}.md" ]]; then
+    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}/${basename}.md" ]]; then
+        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}/${basename}.md" ]]; then
             info "Skipping already-converted: ${filepath}"
             return 0
         fi

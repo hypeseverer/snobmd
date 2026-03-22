@@ -20,6 +20,7 @@ on:
   push:
     tags:
       - 'sn2md-*'
+  workflow_dispatch:
 
 env:
   DOCKERHUB_USERNAME: hypeseverer

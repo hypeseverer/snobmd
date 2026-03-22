@@ -40,7 +40,7 @@ if [[ "${WEBUI_ENABLED:-true}" == "true" ]]; then
 fi
 
 # ── Point llm-ollama at the correct Ollama instance ──────────────────────────
-export LLM_OLLAMA_API_BASE="${OLLAMA_BASE_URL}"
+export OLLAMA_HOST="${OLLAMA_BASE_URL}"
 info "Ollama base URL: ${OLLAMA_BASE_URL}"
 info "Ollama model:    ${OLLAMA_MODEL}"
 

@@ -146,7 +146,7 @@ convert_file() {
         find "${output_subdir}" -name "*.png" -delete
         find "${output_subdir}" -name "*.jpg" -delete
         info "Done: ${rel_dir}/${basename}.md"
-        tag_file "${output_subdir}/${basename}.md"
+        tag_file "${output_subdir}/${basename}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi

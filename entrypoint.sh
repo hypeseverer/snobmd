@@ -52,6 +52,72 @@ until curl -sf "${OLLAMA_BASE_URL}/api/tags" > /dev/null 2>&1; do
 done
 info "Ollama is up."
 
+# ── Tag generation function ───────────────────────────────────────────────────
+# Sends the converted markdown to a text model and prepends YAML frontmatter
+# with generated tags. Uses TAG_MODEL env var, falls back to qwen3:4b.
+tag_file() {
+    local mdfile="$1"
+    local tag_model="${TAG_MODEL:-qwen3:4b}"
+
+    # Skip tagging if disabled
+    if [[ "${TAGGING_ENABLED:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    info "Generating tags for: ${mdfile}"
+
+    local content
+    content=$(cat "${mdfile}")
+
+    local payload
+    payload=$(printf '%s' "{
+        \"model\": \"${tag_model}\",
+        \"prompt\": \"Read the following markdown note and return a list of relevant Obsidian tags based on the content. Return ONLY tags, one per line, in lowercase with hyphens instead of spaces, prefixed with #. No explanation, no preamble, no other text.\n\nNote content:\n${content}\",
+        \"stream\": false
+    }")
+
+    local response
+    response=$(curl -sf -X POST "${OLLAMA_BASE_URL}/api/generate" \
+        -H "Content-Type: application/json" \
+        -d "${payload}" 2>/dev/null)
+
+    if [[ -z "${response}" ]]; then
+        warn "No response from Ollama for tagging, skipping."
+        return 0
+    fi
+
+    # Extract the response text
+    local tags_raw
+    tags_raw=$(echo "${response}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('response',''))" 2>/dev/null)
+
+    if [[ -z "${tags_raw}" ]]; then
+        warn "Could not parse tags from Ollama response, skipping."
+        return 0
+    fi
+
+    # Build YAML frontmatter from tag lines
+    local frontmatter
+    frontmatter="---\ntags:"
+    while IFS= read -r line; do
+        # Strip leading # and whitespace, skip empty lines
+        local tag
+        tag=$(echo "${line}" | sed 's/^#*//' | tr -d '[:space:]')
+        if [[ -n "${tag}" ]]; then
+            frontmatter="${frontmatter}\n  - ${tag}"
+        fi
+    done <<< "${tags_raw}"
+    frontmatter="${frontmatter}\n---\n"
+
+    # Prepend frontmatter to the markdown file
+    local tmpfile
+    tmpfile=$(mktemp)
+    printf "${frontmatter}" > "${tmpfile}"
+    cat "${mdfile}" >> "${tmpfile}"
+    mv "${tmpfile}" "${mdfile}"
+
+    info "Tags added to: ${mdfile}"
+}
+
 # ── Conversion function ───────────────────────────────────────────────────────
 convert_file() {
     local filepath="$1"
@@ -82,6 +148,8 @@ convert_file() {
         --output "${output_subdir}" \
         file "${filepath}"; then
         info "Done: ${rel_dir}/${basename}.md"
+        # Run tagging as a post-processing step
+        tag_file "${output_subdir}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi

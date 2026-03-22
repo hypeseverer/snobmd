@@ -125,6 +125,32 @@ PYEOF
     info "Tags added to: ${mdfile}"
 }
 
+# ── Clean up MD file after conversion ────────────────────────────────────────
+clean_md() {
+    local mdfile="$1"
+    python3 - <<PYEOF
+import re
+
+path = """${mdfile}"""
+with open(path, 'r') as f:
+    content = f.read()
+
+# Remove duplicate YAML frontmatter blocks — keep only the last one
+# sn2md adds its own frontmatter, and tag_file prepends another
+frontmatter_blocks = list(re.finditer(r'^---\n.*?^---\n', content, re.DOTALL | re.MULTILINE))
+if len(frontmatter_blocks) > 1:
+    # Remove all but the last frontmatter block
+    last = frontmatter_blocks[-1]
+    content = content[last.start():]
+
+# Remove the # Images section (stops at next # heading or end of file)
+content = re.sub(r'\n# Images\n.*?(?=\n# |\Z)', '', content, flags=re.DOTALL)
+
+with open(path, 'w') as f:
+    f.write(content)
+PYEOF
+}
+
 # ── Conversion function ───────────────────────────────────────────────────────
 convert_file() {
     local filepath="$1"
@@ -164,6 +190,7 @@ convert_file() {
         find "${output_subdir}" -name "*.jpg" -delete
         info "Done: ${rel_dir}/${basename}.md"
         tag_file "${output_subdir}/${basename}/${basename}.md"
+        clean_md "${output_subdir}/${basename}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi

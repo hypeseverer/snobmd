@@ -200,14 +200,21 @@ convert_file() {
         mkdir -p "${output_subdir}"
         # Remove existing output file if reconverting
         rm -f "${output_subdir:?}/${basename}.md"
-        mv "${staging_dir}/${basename}/${basename}.md" "${output_subdir}/${basename}.md"
+        local src="${staging_dir}/${basename}/${basename}.md"
+        local dst="${output_subdir}/${basename}.md"
+        info "Moving: ${src} -> ${dst}"
+        if mv "${src}" "${dst}"; then
+            info "Move successful: ${dst}"
+        else
+            err "Move failed: ${src} -> ${dst}"
+        fi
         # Chown output files if OUTPUT_UID is set in environment
         if [[ -n "${OUTPUT_UID:-}" ]]; then
             chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
         fi
         info "Done: ${rel_dir}/${basename}.md"
-        tag_file "${output_subdir}/${basename}.md"
-        clean_md "${output_subdir}/${basename}.md"
+        tag_file "${dst}"
+        clean_md "${dst}"
     else
         err "Failed to convert: ${filepath}"
     fi

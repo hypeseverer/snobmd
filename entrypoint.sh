@@ -171,8 +171,8 @@ convert_file() {
         return 0
     fi
 
-    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}/${basename}.md" ]]; then
-        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}/${basename}.md" ]]; then
+    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}.md" ]]; then
+        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}.md" ]]; then
             info "Skipping already-converted: ${filepath}"
             return 0
         fi
@@ -198,16 +198,16 @@ convert_file() {
         find "${staging_dir}" -name "*.jpg" -delete
         # Move staged output into final output location
         mkdir -p "${output_subdir}"
-        # Remove existing output folder if reconverting
-        rm -rf "${output_subdir:?}/${basename}"
-        mv "${staging_dir}/${basename}" "${output_subdir}/${basename}"
+        # Remove existing output file if reconverting
+        rm -f "${output_subdir:?}/${basename}.md"
+        mv "${staging_dir}/${basename}/${basename}.md" "${output_subdir}/${basename}.md"
         # Chown output files if OUTPUT_UID is set in environment
         if [[ -n "${OUTPUT_UID:-}" ]]; then
             chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
         fi
         info "Done: ${rel_dir}/${basename}.md"
-        tag_file "${output_subdir}/${basename}/${basename}.md"
-        clean_md "${output_subdir}/${basename}/${basename}.md"
+        tag_file "${output_subdir}/${basename}.md"
+        clean_md "${output_subdir}/${basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi

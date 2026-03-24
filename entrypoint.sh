@@ -226,25 +226,27 @@ convert_file() {
         # Clean up intermediate image files from staging
         find "${staging_dir}" -name "*.png" -delete
         find "${staging_dir}" -name "*.jpg" -delete
-        # Move staged output into final output location
+        # Run tag_file and clean_md in staging so Obsidian only ever sees
+        # the fully-processed file land in the vault — no mid-flight modifications
+        local staged_md="${staging_dir}/${basename}/${basename}.md"
+        tag_file "${staged_md}"
+        clean_md "${staged_md}"
+        # Move fully-processed file into final output location
         mkdir -p "${output_subdir}"
         # Remove existing output file if reconverting
         rm -f "${output_subdir:?}/${basename}.md"
-        local src="${staging_dir}/${basename}/${basename}.md"
         local dst="${output_subdir}/${basename}.md"
-        info "Moving: ${src} -> ${dst}"
-        if mv "${src}" "${dst}"; then
+        info "Moving: ${staged_md} -> ${dst}"
+        if mv "${staged_md}" "${dst}"; then
             info "Move successful: ${dst}"
         else
-            err "Move failed: ${src} -> ${dst}"
+            err "Move failed: ${staged_md} -> ${dst}"
         fi
         # Chown output files if OUTPUT_UID is set in environment
         if [[ -n "${OUTPUT_UID:-}" ]]; then
             chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
         fi
         info "Done: ${rel_dir}/${basename}.md"
-        tag_file "${dst}"
-        clean_md "${dst}"
     else
         err "Failed to convert: ${filepath}"
     fi

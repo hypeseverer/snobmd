@@ -103,24 +103,54 @@ PYEOF
         return 0
     fi
 
-    # Build YAML frontmatter from tag lines
-    local frontmatter
-    frontmatter="---\ntags:"
-    while IFS= read -r line; do
-        local tag
-        tag=$(echo "${line}" | sed 's/^#*//' | tr -d '[:space:]')
-        if [[ -n "${tag}" ]]; then
-            frontmatter="${frontmatter}\n  - ${tag}"
-        fi
-    done <<< "${response}"
-    frontmatter="${frontmatter}\n---\n"
+    # Merge AI-generated tags into the existing sn2md frontmatter block
+    # rather than prepending a duplicate block
+    python3 - <<PYEOF
+import re, sys
 
-    # Prepend frontmatter to the markdown file
-    local tmpfile
-    tmpfile=$(mktemp)
-    printf '%s' "${frontmatter}" > "${tmpfile}"
-    cat "${mdfile}" >> "${tmpfile}"
-    mv "${tmpfile}" "${mdfile}"
+mdfile = """${mdfile}"""
+raw_response = """${response}"""
+
+# Parse tags from Ollama response — strip leading # and whitespace
+new_tags = []
+for line in raw_response.splitlines():
+    tag = line.lstrip('#').strip()
+    if tag:
+        new_tags.append(tag)
+
+if not new_tags:
+    sys.exit(0)
+
+with open(mdfile, 'r') as f:
+    content = f.read()
+
+# Check if there is an existing frontmatter block
+fm_match = re.match(r'^---\n(.*?)\n---\n', content, re.DOTALL)
+if fm_match:
+    fm_body = fm_match.group(1)
+    after_fm = content[fm_match.end():]
+
+    # Check if tags key already exists in frontmatter
+    tags_match = re.search(r'^tags:\s*\n((?:  - .+\n)*)', fm_body, re.MULTILINE)
+    if tags_match:
+        # Append new tags to existing tags list
+        existing_tags_block = tags_match.group(0)
+        extra = ''.join(f'  - {t}\n' for t in new_tags)
+        new_fm_body = fm_body.replace(existing_tags_block, existing_tags_block + extra)
+    else:
+        # Add tags key to existing frontmatter
+        tags_block = 'tags:\n' + ''.join(f'  - {t}\n' for t in new_tags)
+        new_fm_body = fm_body + '\n' + tags_block
+
+    new_content = f'---\n{new_fm_body}\n---\n{after_fm}'
+else:
+    # No existing frontmatter — create one
+    tags_block = 'tags:\n' + ''.join(f'  - {t}\n' for t in new_tags)
+    new_content = f'---\n{tags_block}---\n{content}'
+
+with open(mdfile, 'w') as f:
+    f.write(new_content)
+PYEOF
 
     info "Tags added to: ${mdfile}"
 }

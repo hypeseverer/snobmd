@@ -80,7 +80,8 @@ payload = json.dumps({
         "instead of spaces, prefixed with #. No explanation, no preamble, no other text.\n\n"
         "Note content:\n" + content
     ),
-    "stream": False
+    "stream": False,
+    "think": False
 }).encode("utf-8")
 
 req = urllib.request.Request(
@@ -91,7 +92,11 @@ req = urllib.request.Request(
 try:
     with urllib.request.urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read().decode("utf-8"))
-        print(result.get("response", ""))
+        raw = result.get("response", "")
+        # Strip <think>...</think> blocks in case model ignores think=false
+        import re as _re
+        raw = _re.sub(r'<think>.*?</think>', '', raw, flags=_re.DOTALL).strip()
+        print(raw)
 except Exception as e:
     print("", file=sys.stderr)
     sys.exit(1)
@@ -208,12 +213,68 @@ convert_file() {
         return 0
     fi
 
-    if [[ "${FORCE_RECONVERT}" != "true" ]] && [[ -f "${output_subdir}/${basename}.md" ]]; then
-        if [[ ! "${filepath}" -nt "${output_subdir}/${basename}.md" ]]; then
-            info "Skipping already-converted: ${filepath}"
-            return 0
+    # ── Counter-based filename versioning ─────────────────────────────────────
+    # Each conversion gets a monotonically increasing counter suffix (e.g. note-1.md,
+    # note-2.md) so LiveSync always sees a new filename rather than an overwrite.
+    # Counter state is persisted in /config/counters.json across restarts.
+    local counter_key="${rel_dir}/${basename}"
+    local counter
+    counter=$(python3 - <<PYEOF
+import json, os
+
+counter_file = "/config/counters.json"
+key = """${counter_key}"""
+
+try:
+    with open(counter_file, "r") as f:
+        counters = json.load(f)
+except Exception:
+    counters = {}
+
+current = counters.get(key, 0)
+new_count = current + 1
+counters[key] = new_count
+
+with open(counter_file, "w") as f:
+    json.dump(counters, f, indent=2)
+
+print(new_count)
+PYEOF
+)
+
+    local versioned_basename="${basename}-${counter}"
+    local prev_counter=$(( counter - 1 ))
+
+    # Skip check — look for any existing versioned file for this note
+    if [[ "${FORCE_RECONVERT}" != "true" ]]; then
+        # Find the most recent versioned file if it exists
+        local existing
+        existing=$(find "${output_subdir}" -maxdepth 1 -name "${basename}-*.md" 2>/dev/null | sort -V | tail -1)
+        if [[ -n "${existing}" ]]; then
+            local existing_basename
+            existing_basename=$(basename "${existing}")
+            # Check if source note is newer than existing output
+            if [[ ! "${filepath}" -nt "${existing}" ]]; then
+                info "Skipping already-converted: ${filepath}"
+                # Revert counter since we are not reconverting
+                python3 - <<PYEOF
+import json
+counter_file = "/config/counters.json"
+key = """${counter_key}"""
+try:
+    with open(counter_file, "r") as f:
+        counters = json.load(f)
+    counters[key] = counters.get(key, 1) - 1
+    with open(counter_file, "w") as f:
+        json.dump(counters, f, indent=2)
+except Exception:
+    pass
+PYEOF
+                rm -f "${lockfile}"
+                return 0
+            fi
+            info "Note updated since last conversion, reconverting: ${filepath}"
         fi
-        info "Note updated since last conversion, reconverting: ${filepath}"
     fi
 
     touch "${lockfile}"
@@ -224,7 +285,7 @@ convert_file() {
     rm -rf "${staging_dir}"
     mkdir -p "${staging_dir}"
 
-    info "Converting: ${filepath}"
+    info "Converting: ${filepath} -> ${versioned_basename}.md"
     if sn2md \
         --config "${CONFIG_FILE}" \
         --output "${staging_dir}" \
@@ -242,18 +303,24 @@ convert_file() {
         if [[ -n "${OUTPUT_UID:-}" ]]; then
             chown "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${staged_md}"
         fi
-        # Move fully-processed file into final output location
+        # Move fully-processed file into final output location with versioned name
         mkdir -p "${output_subdir}"
-        # Remove existing output file if reconverting
-        rm -f "${output_subdir:?}/${basename}.md"
-        local dst="${output_subdir}/${basename}.md"
+        local dst="${output_subdir}/${versioned_basename}.md"
         info "Moving: ${staged_md} -> ${dst}"
         if mv "${staged_md}" "${dst}"; then
             info "Move successful: ${dst}"
+            # Delete the previous version now that the new one is in place
+            if [[ ${prev_counter} -ge 1 ]]; then
+                local prev_file="${output_subdir}/${basename}-${prev_counter}.md"
+                if [[ -f "${prev_file}" ]]; then
+                    rm -f "${prev_file}"
+                    info "Deleted previous version: ${prev_file}"
+                fi
+            fi
         else
             err "Move failed: ${staged_md} -> ${dst}"
         fi
-        info "Done: ${rel_dir}/${basename}.md"
+        info "Done: ${rel_dir}/${versioned_basename}.md"
     else
         err "Failed to convert: ${filepath}"
     fi

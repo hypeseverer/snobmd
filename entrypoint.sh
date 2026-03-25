@@ -130,13 +130,20 @@ if fm_match:
     fm_body = fm_match.group(1)
     after_fm = content[fm_match.end():]
 
-    # Check if tags key already exists in frontmatter
-    tags_match = re.search(r'^tags:\s*\n((?:  - .+\n)*)', fm_body, re.MULTILINE)
-    if tags_match:
-        # Append new tags to existing tags list
-        existing_tags_block = tags_match.group(0)
+    # Check if tags key already exists in frontmatter (list or inline format)
+    tags_list_match = re.search(r'^tags:\s*\n((?:  - .+\n)*)', fm_body, re.MULTILINE)
+    tags_inline_match = re.search(r'^tags:\s+(\S+)\s*$', fm_body, re.MULTILINE)
+    if tags_list_match:
+        # Append new tags to existing list-style tags
+        existing_tags_block = tags_list_match.group(0)
         extra = ''.join(f'  - {t}\n' for t in new_tags)
         new_fm_body = fm_body.replace(existing_tags_block, existing_tags_block + extra)
+    elif tags_inline_match:
+        # Convert inline 'tags: supernote' to list format and append new tags
+        existing_tag = tags_inline_match.group(1)
+        all_tags = [existing_tag] + new_tags
+        tags_block = 'tags:\n' + ''.join(f'  - {t}\n' for t in all_tags)
+        new_fm_body = fm_body[:tags_inline_match.start()] + tags_block + fm_body[tags_inline_match.end():]
     else:
         # Add tags key to existing frontmatter
         tags_block = 'tags:\n' + ''.join(f'  - {t}\n' for t in new_tags)

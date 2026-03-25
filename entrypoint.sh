@@ -231,6 +231,10 @@ convert_file() {
         local staged_md="${staging_dir}/${basename}/${basename}.md"
         tag_file "${staged_md}"
         clean_md "${staged_md}"
+        # Chown in staging before move so file lands with correct ownership
+        if [[ -n "${OUTPUT_UID:-}" ]]; then
+            chown "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${staged_md}"
+        fi
         # Move fully-processed file into final output location
         mkdir -p "${output_subdir}"
         # Remove existing output file if reconverting
@@ -241,10 +245,6 @@ convert_file() {
             info "Move successful: ${dst}"
         else
             err "Move failed: ${staged_md} -> ${dst}"
-        fi
-        # Chown output files if OUTPUT_UID is set in environment
-        if [[ -n "${OUTPUT_UID:-}" ]]; then
-            chown -R "${OUTPUT_UID}:${OUTPUT_GID:-${OUTPUT_UID}}" "${output_subdir}"
         fi
         info "Done: ${rel_dir}/${basename}.md"
     else

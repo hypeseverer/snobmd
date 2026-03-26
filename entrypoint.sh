@@ -78,10 +78,9 @@ payload = json.dumps({
         "Read the following markdown note and return a list of relevant Obsidian tags "
         "based on the content. Return ONLY tags, one per line, in lowercase with hyphens "
         "instead of spaces, prefixed with #. No explanation, no preamble, no other text.\n\n"
-        "Note content:\n" + content
+        "Note content:\n" + content + "\n/no_think"
     ),
-    "stream": False,
-    "think": False
+    "stream": False
 }).encode("utf-8")
 
 req = urllib.request.Request(
@@ -93,11 +92,15 @@ try:
     with urllib.request.urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         raw = result.get("response", "")
-        # Strip <think>...</think> blocks in case model ignores think=false
+        # Strip <think>...</think> blocks as fallback
         import re as _re
         raw = _re.sub(r'<think>.*?</think>', '', raw, flags=_re.DOTALL).strip()
-        print(raw)
+        # If response still looks like prose (no # lines found), discard it
+        lines = [l.strip() for l in raw.splitlines() if l.strip().startswith('#')]
+        print('\n'.join(lines))
 except Exception as e:
+    print("", file=sys.stderr)
+    sys.exit(1)
     print("", file=sys.stderr)
     sys.exit(1)
 PYEOF
